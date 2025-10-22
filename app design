@@ -1,0 +1,64 @@
+import streamlit as st
+import pandas as pd
+import io
+from datetime import datetime
+from allele_compare import compare_profiles  # import your existing function
+
+st.set_page_config(page_title="Allele Comparison Tool", layout="wide")
+
+st.title("🔬 Allele Comparison Tool")
+st.markdown("""
+Upload your **Suspect**, **Assumed Contributor**, and one or more **Evidence** `.csv` files.  
+The program will compare the allele profiles and generate an Excel report including:
+- Shared alleles  
+- Obligates of suspect  
+- Obligates of assumed contributor  
+- Missing from suspect  
+- Missing from assumed contributor  
+""")
+
+# File uploaders
+suspect_file = st.file_uploader("Upload Suspect File (.csv)", type="csv")
+assumed_file = st.file_uploader("Upload Assumed Contributor File (.csv)", type="csv")
+evidence_files = st.file_uploader("Upload Evidence File(s) (.csv)", type="csv", accept_multiple_files=True)
+
+if st.button("Run Comparison"):
+    if not suspect_file or not assumed_file or not evidence_files:
+        st.warning("Please upload all required files (suspect, assumed contributor, and at least one evidence file).")
+    else:
+        with st.spinner("Running allele comparison... please wait."):
+            output = io.BytesIO()
+
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                for evidence in evidence_files:
+                    # Read CSVs into DataFrames
+                    contrib_df = pd.read_csv(assumed_file)
+                    suspect_df = pd.read_csv(suspect_file)
+                    evidence_df = pd.read_csv(evidence)
+
+                    # Run your comparison function
+                    result_dict = compare_profiles(contrib_df, suspect_df, evidence_df)
+                    # result_dict should contain DataFrames for each category
+
+                    # Write results per evidence file
+                    for name, df in result_dict.items():
+                        sheet_name = f"{evidence.name[:20]}_{name[:15]}"
+                        df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+                    # Optionally add a summary sheet per evidence
+                    summary_data = {
+                        "Category": list(result_dict.keys()),
+                        "Allele Count": [len(df) for df in result_dict.values()]
+                    }
+                    pd.DataFrame(summary_data).to_excel(writer, index=False, sheet_name=f"{evidence.name[:20]}_Summary")
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_name = f"Allele_Comparison_{timestamp}.xlsx"
+
+            st.success("✅ Analysis complete!")
+            st.download_button(
+                label="📥 Download Excel Report",
+                data=output.getvalue(),
+                file_name=file_name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )

@@ -55,9 +55,9 @@ if st.button("Run Comparison"):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             file_name = f"Allele_Comparison_{timestamp}.xlsx"
 
-            st.success("✅ Analysis complete!")
+            st.success(" Analysis complete!")
             st.download_button(
-                label="📥 Download Excel Report",
+                label=" Download Excel Report",
                 data=output.getvalue(),
                 file_name=file_name,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
